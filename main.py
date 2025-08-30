@@ -2,6 +2,7 @@
 import sys
 import i3ipc
 
+
 # Parse workspace number (handles "3:web" → 3)
 def parse_name(name: str) -> int:
     try:
@@ -40,11 +41,30 @@ def cycle_workspace(i3, direction: int):
     i3.command(f"workspace {next_ws.name}")
 
 
-# Toggle output between eDP-1 and HDMI-1-0
+def get_outputs(i3):
+    tree = i3.get_tree()
+    outputs = [
+        n.name for n in tree.nodes if n.type == "output" and not n.name.startswith("__")
+    ]
+    return sorted(outputs)
+
+
 def toggle_output(i3):
     current, _ = get_current_workspace(i3)
+    outputs = get_outputs(i3)
 
-    target = "HDMI-1-0" if current.output != "HDMI-1-0" else "eDP-1"
+    if len(outputs) < 2:
+        print("Not enough outputs detected")
+        sys.exit(1)
+
+    try:
+        idx = outputs.index(current.output)
+    except ValueError:
+        print(f"Current output {current.output} not in detected outputs {outputs}")
+        sys.exit(1)
+
+    # Move to next output, wrap around
+    target = outputs[(idx + 1) % len(outputs)]
 
     i3.command(f"move workspace to output {target}")
     i3.command(f"workspace {current.name}")
